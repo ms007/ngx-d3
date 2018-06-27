@@ -6,7 +6,7 @@
     "name": "OPITZ CONSULTING Deutschland GmbH",
     "url": "https://www.opitz-consulting.com/"    
   },
-  "license": "MIT",
+  "license": "Apache License 2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/opitzconsulting/ngx-d3.git"
