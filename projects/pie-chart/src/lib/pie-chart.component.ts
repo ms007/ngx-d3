@@ -1,4 +1,4 @@
-import { Component, Input, OnChanges, DoCheck, ElementRef, SimpleChanges, OnInit } from '@angular/core';
+import { Component, Input, OnChanges, DoCheck, ElementRef, SimpleChanges, OnInit, Output, EventEmitter } from '@angular/core';
 
 import * as d3 from 'd3';
 
@@ -41,6 +41,10 @@ export class PieChartComponent implements OnInit, OnChanges, DoCheck {
   @Input() innerSpacing = 0;
   /** outer spacing in pixel */
   @Input() outerSpacing = 1;
+  /** fired when user clicks on a chart entry */
+  @Output() chartClick: EventEmitter<PieChartData> = new EventEmitter();
+  /** fired when user hovers a chart entry */
+  @Output() chartHover: EventEmitter<PieChartData> = new EventEmitter();
 
   /** pie chart radius in pixel */
   public radius: number;
@@ -455,6 +459,17 @@ export class PieChartComponent implements OnInit, OnChanges, DoCheck {
       .transition()
       .duration(250)
       .style('opacity', 1);
+
+    // get index
+    const idx = parseInt((event.target as SVGPathElement).getAttribute('idx'),10);
+    // get caption of element
+    const caption = this.curData[idx].data.caption;
+    // get original data by caption
+    const item = this.data.filter( (d) => d.caption === caption)[0];
+    // if data found then emit chart click event
+    if(item){
+      this.chartHover.emit(item);
+    }
   };
 
   /**
@@ -481,6 +496,23 @@ export class PieChartComponent implements OnInit, OnChanges, DoCheck {
       .on('end', () => {
         d3.select(this.tooltip).style('display', 'none')
       });
+  };
+
+  /**
+   * fired when user clicks on a pie chart path element
+   * @param event 
+   */
+  public clickPath(event: MouseEvent){
+    // get index
+    const idx = parseInt((event.target as SVGPathElement).getAttribute('idx'),10);
+    // get caption of element
+    const caption = this.curData[idx].data.caption;
+    // get original data by caption
+    const item = this.data.filter( (d) => d.caption === caption)[0];
+    // if data found then emit chart click event
+    if(item){
+      this.chartClick.emit(item);
+    }
   };
 
   /**

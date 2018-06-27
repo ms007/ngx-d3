@@ -52,6 +52,10 @@ public pieChartData: Array<PieChartData>: Array<PieChartData> = [
 - `innerSpacing` (`number`) - The chart spacing from the middle corner in pixel (default 0).
 - `outerSpacing` (`number`) - The chart margin in pixel (default 1).
 
+**Events**
+- `chartClick`: fires when click on a chart has occured, returns regarding chart entry.
+- `chartHover`: fires when mouseover (hover) on a chart has occured, returns regarding chart entry.
+
 ## License
 
 This implementation is released unter the Apache License v2.

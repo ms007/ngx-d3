@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { PieChartData } from 'pie-chart';
+import { PieChartData } from '../../../projects/pie-chart/src/lib/pie-chart.component';
 
 @Component({
   selector: 'app-pie-chart-demo',
@@ -131,6 +131,22 @@ export class PieChartDemoComponent implements OnInit {
     for(let item of this.pieChartData){
       delete item.color;
     }
+  };
+
+  /**
+   * fired when user clicks on a chart item
+   * @param item 
+   */
+  public chartClicked(item: PieChartData) {
+    console.log('clicked item:%o', item);
+  };
+
+  /**
+   * fired when user hovers a chart item
+   * @param item 
+   */
+  public chartHovered(item: PieChartData) {
+    console.log('hovered item:%o', item);
   };
 
 }

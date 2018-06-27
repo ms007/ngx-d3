@@ -17,5 +17,8 @@
 </table>
 
 <div style="margin: 2em;">
-  <oc-pie-chart [data]="pieChartData" [width]="250" [height]="250" style="margin: auto; display: block; width:250px;"></oc-pie-chart>
+  <oc-pie-chart [data]="pieChartData" [width]="250" [height]="250" 
+    (chartClick)="chartClicked($event)" (chartHover)="chartHovered($event)"
+    style="margin: auto; display: block; width:250px;"
+    ></oc-pie-chart>
 </div>

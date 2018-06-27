@@ -1,8 +1,8 @@
 <div class="pie-chart-tooltip"></div>
 <svg [attr.width]="width" [attr.height]="height">
     <g [attr.transform]="center">
-        <path *ngFor="let d of curData" 
+        <path *ngFor="let d of curData; let idx = index;" [attr.idx]="idx" 
             [attr.fill]="d.data.color" [attr.d]="d.data.path" [attr.tooltip]="d.data.caption"
-            (mouseover)="overPath($event)" (mousemove)="movePath($event);" (mouseout)="outPath($event)" />
+            (mouseover)="overPath($event)" (mousemove)="movePath($event);" (mouseout)="outPath($event)" (click)="clickPath($event)" />
     </g>
 </svg>
