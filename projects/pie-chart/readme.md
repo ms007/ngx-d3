@@ -1,12 +1,10 @@
-# NgxD3
-Collection of reusable D3.js components for Angular 6+
+# PieChart
+An animated pie chart component, displaying all changes with smooth transitions.
 
 The library has been developed with Angular 6. It should work with older versions of Angular too, but this isn't tested yet.
 
 This repository is maintained by volunteers of [OPITZ CONSULTING Deutschland GmbH](https://www.opitz-consulting.com).
 
-## PieChart
-An animated pie chart component, displaying all changes with smooth transitions.
 
 There is a demo component `PieChartDemoComponent` in this repository at https://github.com/opitzconsulting/ngx-d3.
 
@@ -52,7 +50,7 @@ public pieChartData: Array<PieChartData>: Array<PieChartData> = [
 - `innerSpacing` (`number`) - The chart spacing from the middle corner in pixel (default 0).
 - `outerSpacing` (`number`) - The chart margin in pixel (default 1).
 
-## License
+**License**
 
 This implementation is released unter the Apache License v2.
 
