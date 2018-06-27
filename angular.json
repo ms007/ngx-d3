@@ -121,7 +121,7 @@
       "root": "projects/pie-chart",
       "sourceRoot": "projects/pie-chart/src",
       "projectType": "library",
-      "prefix": "lib",
+      "prefix": "oc",
       "architect": {
         "build": {
           "builder": "@angular-devkit/build-ng-packagr:build",

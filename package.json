@@ -7,7 +7,10 @@
     "build": "ng build",
     "test": "ng test",
     "lint": "ng lint",
-    "e2e": "ng e2e"
+    "e2e": "ng e2e",
+    "build:pie-chart": "ng build --prod pie-chart",
+    "pack:pie-chart": "cd dist/pie-chart && npm pack",
+    "make:pie-chart": "npm run build:pie-chart && npm run pack:pie-chart"
   },
   "private": true,
   "dependencies": {
@@ -21,6 +24,7 @@
     "@angular/platform-browser-dynamic": "^6.0.2",
     "@angular/router": "^6.0.2",
     "core-js": "^2.5.4",
+    "d3": "^5.4.0",
     "d3-path": "^1.0.5",
     "d3-scale": "^2.0.0",
     "d3-shape": "^1.2.0",
