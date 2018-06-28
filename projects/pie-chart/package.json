@@ -1,6 +1,6 @@
 {
-  "name": "oc-pie-chart",
-  "version": "0.0.6",
+  "name": "@opitzconsulting/pie-chart",
+  "version": "1.0.0",
   "description": "animated pie chart component",
   "author": {
     "name": "OPITZ CONSULTING Deutschland GmbH",

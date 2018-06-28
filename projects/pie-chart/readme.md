@@ -9,12 +9,12 @@ This repository is maintained by volunteers of [OPITZ CONSULTING Deutschland Gmb
 There is a demo component `PieChartDemoComponent` in this repository at https://github.com/opitzconsulting/ngx-d3.
 
 ```bash
-npm install oc-pie-chart
+npm install @opitzconsulting/pie-chart
 ```
 
 In your application root module definition add `PieChartModule`.
 ```typescript
-import { PieChartModule } from 'oc-pie-chart';
+import { PieChartModule } from '@opitzconsulting/pie-chart';
 @NgModule({
   bootstrap: [ /* ... */ ],
   declarations: [ /* ... */ ],

@@ -11,12 +11,12 @@ An animated pie chart component, displaying all changes with smooth transitions.
 There is a demo component `PieChartDemoComponent` in this repository at https://github.com/opitzconsulting/ngx-d3.
 
 ```bash
-npm install oc-pie-chart
+npm install @opitzconsulting/pie-chart
 ```
 
 In your application root module definition add `PieChartModule`.
 ```typescript
-import { PieChartModule } from 'oc-pie-chart';
+import { PieChartModule } from '@opitzconsulting/pie-chart';
 @NgModule({
   bootstrap: [ /* ... */ ],
   declarations: [ /* ... */ ],
@@ -35,7 +35,7 @@ In your components template add `oc-pie-chart` tag.
 
 In your component class you can declare the data:
 ```typescript
-import { PieChartData } from 'oc-pie-chart';
+import { PieChartData } from '@opitzconsulting/pie-chart';
 /* ... */
 public pieChartData: Array<PieChartData>: Array<PieChartData> = [
   { caption: 'apples', value: 10, color: 'green' },
