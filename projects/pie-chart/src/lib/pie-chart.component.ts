@@ -477,10 +477,19 @@ export class PieChartComponent implements OnInit, OnChanges, DoCheck {
    * @param event 
    */
   public movePath(event: MouseEvent){
+    // aggregate scroll positions, because event.page* properties are relative to top left corner of document
+    let offsetX = 0;
+    let offsetY = 0;
+    let element = (this.tooltip.parentElement as HTMLElement);
+    while(element){
+      offsetX += element.scrollLeft;
+      offsetY += element.scrollTop;
+      element = element.parentElement;
+    }
     // adjust tooltip
     d3.select(this.tooltip)
-      .style('top', (event.pageY + 10)+'px')
-      .style('left', (event.pageX + 10)+'px');
+      .style('top', (event.pageY - offsetY + 10)+'px')
+      .style('left', (event.pageX - offsetX + 10)+'px');
   };
 
   /**
