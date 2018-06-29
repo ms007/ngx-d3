@@ -1,0 +1,25 @@
+
+<table style="margin: 0 auto; text-align: center;">
+  <tr>
+    <td><button (click)="changeRandomValue()">change random value</button></td>
+    <td><button (click)="removeRandomItem()">remove random item</button></td>
+    <td><button (click)="addRandomItem()">add random item</button></td>
+    <td><button (click)="moveRandomItem()">move random item</button></td>
+    <td><button (click)="resize()">resize</button></td>
+  </tr>
+  <tr>
+    <td><button (click)="changeRandomValues()">change random values</button></td>
+    <td><button (click)="removeRandomItems()">remove random items</button></td>
+    <td><button (click)="addRandomItems()">add random items</button></td>
+    <td><button (click)="moveRandomItems()">move random items</button></td>
+    <td><button (click)="changeColors()">change colors</button></td>
+  </tr>
+</table>
+
+<div style="margin: 2em;">
+  <oc-bubble-chart
+    [data]="data" [width]="chartWidth" [height]="chartHeight"
+    (chartHover)="chartHovered($event)" (chartClick)="chartClicked($event)"
+    style="margin: auto; display: block;" [style.width]="chartWidth+'px'"
+    ></oc-bubble-chart>
+</div>
