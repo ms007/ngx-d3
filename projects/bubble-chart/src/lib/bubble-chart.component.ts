@@ -321,19 +321,21 @@ export class BubbleChartComponent implements OnInit {
    */
   protected detectDeletedEntries(leaves: d3.HierarchyCircularNode<InternalBubbleChartData>[]): void {
     this.curData.forEach( (item, index) => {
-      // check if deleted
-      const isDeleted = (leaves.filter( (leaf) => leaf.data.name===item.data.name ).length === 0);
-      if(isDeleted){
-        // mark current item as deleted
-        {
-          this.curData[index].data.deleted = true;
-        }
-        // set end item as deleted and set value 0
-        {
-          this.endData[index].data.deleted = true;
-          this.endData[index].r = 0;
-          this.endData[index].value = 0;
-          this.endData[index].data.fontSize = 0;
+      if(item.data.deleted!==true){
+        // check if deleted
+        const isDeleted = (leaves.filter( (leaf) => leaf.data.name===item.data.name ).length === 0);
+        if(isDeleted){
+          // mark current item as deleted
+          {
+            this.curData[index].data.deleted = true;
+          }
+          // set end item as deleted and set value 0
+          {
+            this.endData[index].data.deleted = true;
+            this.endData[index].r = 0;
+            this.endData[index].value = 0;
+            this.endData[index].data.fontSize = 0;
+          }
         }
       }
     });
@@ -346,7 +348,7 @@ export class BubbleChartComponent implements OnInit {
   protected detectInsertedEntries(leaves: d3.HierarchyCircularNode<InternalBubbleChartData>[]): void {
     leaves.forEach( (leaf, idx) => {
       // check if inserted
-      const isInserted = ((this.endData.filter( (endItem) => endItem.data.name === leaf.data.name)).length === 0);
+      const isInserted = ((this.endData.filter( (endItem) => endItem.data.deleted !== true && endItem.data.name === leaf.data.name)).length === 0);
       if(isInserted){
         // add item to current state with 0
         {
@@ -376,7 +378,7 @@ export class BubbleChartComponent implements OnInit {
     // detect changes in data or position / dimension
     leaves.forEach( (leaf, idx) => {
       // search for item
-      const endItem = this.endData.filter( (item) => item.data.name === leaf.data.name)[0];
+      const endItem = this.endData.filter( (item) => item.data.deleted !== true && item.data.name === leaf.data.name)[0];
       // synchronize data
       endItem.data.color = leaf.data.color;
       endItem.data.size = leaf.data.size;
@@ -554,10 +556,19 @@ export class BubbleChartComponent implements OnInit {
    * @param event 
    */
   public moveBubble(event: MouseEvent){
+    // aggregate scroll positions, because event.page* properties are relative to top left corner of document
+    let offsetX = 0;
+    let offsetY = 0;
+    let element = (this.tooltip.parentElement as HTMLElement);
+    while(element){
+      offsetX += element.scrollLeft;
+      offsetY += element.scrollTop;
+      element = element.parentElement;
+    }
     // adjust tooltip
     d3.select(this.tooltip)
-      .style('top', (event.pageY + 10)+'px')
-      .style('left', (event.pageX + 10)+'px');
+      .style('top', (event.pageY - offsetY + 10)+'px')
+      .style('left', (event.pageX - offsetX + 10)+'px');
   };
 
   /**
