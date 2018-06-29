@@ -22,6 +22,12 @@
       ],
       "pie-chart/*": [
         "dist/pie-chart/*"
+      ],
+      "bubble-chart": [
+        "dist/bubble-chart"
+      ],
+      "bubble-chart/*": [
+        "dist/bubble-chart/*"
       ]
     }
   }

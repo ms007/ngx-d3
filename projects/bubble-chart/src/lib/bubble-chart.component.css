@@ -1,0 +1,32 @@
+div.bubble-chart-tooltip {
+  position: fixed;
+  display: none;
+  opacity: 0;
+  font: 12px sans-serif;
+  color: #ffffff;
+  background-color: rgba(35, 47, 52, .8);
+  padding: 5px;
+}
+.bubble-chart {
+  font-size: 24px;
+}
+.bubble-chart circle {
+  fill-opacity: .3;
+  stroke-width: 0;
+  transition: stroke-width .5s linear 0s;
+}
+.bubble-chart text {
+  text-anchor: middle;
+  font-family: sans-serif;
+}
+.bubble-chart g {
+  opacity: 0.7;
+  cursor: default;
+  transition: opacity .5s linear 0s;
+}
+.bubble-chart g:hover {
+  opacity: 1;
+}
+.bubble-chart g:hover circle {
+  stroke-width: 2px;
+}

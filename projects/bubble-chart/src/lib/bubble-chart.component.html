@@ -1,0 +1,31 @@
+<div class="bubble-chart-tooltip"></div>
+<svg class="bubble-chart" [attr.width]="width" [attr.height]="height">
+  <text class="text-measure" style="opacity: 0">Hg</text>
+  <g *ngFor="let item of curData; let idx = index;"
+    [attr.transform]="'translate('+item.x+','+item.y+')'"
+    [attr.idx]="idx"
+    [attr.tooltip]="item.data.name"
+    (mouseover)="overBubble($event)"
+    (mousemove)="moveBubble($event)"
+    (mouseout)="outBubble($event)"
+    (click)="clickBubble($event)"
+    >
+    <circle 
+      [attr.r]="item.r"
+      [attr.stroke]="item.data.color"
+      [attr.fill]="item.data.color"
+      ></circle>
+    <image *ngIf="item.data.showImage"
+      [attr.xlink:href]="item.data.imagePath"
+      [attr.x]="-item.r/2"
+      [attr.width]="item.r"
+      [attr.y]="-item.r/2 - item.r/4"
+      [attr.height]="item.r"
+      ></image>
+    <text 
+      [attr.dy]="(item.data.showImage) ? (item.r*5/8)+'px' : '.35em'" 
+      [attr.font-size]="item.data.fontSize+'px'"
+      [attr.fill]="item.data.color"
+      >{{ item.data.name }}</text>
+  </g>
+</svg>
