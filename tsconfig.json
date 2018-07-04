@@ -28,6 +28,12 @@
       ],
       "bubble-chart/*": [
         "dist/bubble-chart/*"
+      ],
+      "SegmentedBarChart": [
+        "dist/segmented-bar-chart"
+      ],
+      "SegmentedBarChart/*": [
+        "dist/segmented-bar-chart/*"
       ]
     }
   }
