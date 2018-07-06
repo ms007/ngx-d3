@@ -197,7 +197,7 @@
         }
       }
     },
-    "SegmentedBarChart": {
+    "segmented-bar-chart": {
       "root": "projects/segmented-bar-chart",
       "sourceRoot": "projects/segmented-bar-chart/src",
       "projectType": "library",

@@ -13,7 +13,10 @@
     "make:pie-chart": "npm run build:pie-chart && npm run pack:pie-chart",
     "build:bubble-chart": "ng build --prod bubble-chart",
     "pack:bubble-chart": "cd dist/bubble-chart && npm pack",
-    "make:bubble-chart": "npm run build:bubble-chart && npm run pack:bubble-chart"
+    "make:bubble-chart": "npm run build:bubble-chart && npm run pack:bubble-chart",
+    "build:segmented-bar-chart": "ng build --prod segmented-bar-chart",
+    "pack:segmented-bar-chart": "cd dist/segmented-bar-chart && npm pack",
+    "make:segmented-bar-chart": "npm run build:segmented-bar-chart && npm run pack:segmented-bar-chart"
   },
   "private": true,
   "dependencies": {

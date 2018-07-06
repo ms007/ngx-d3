@@ -69,21 +69,27 @@ export class SegmentedBarChartDemoComponent implements OnInit {
 
     this.data = [];
 
-    for(let i=0; i<10; ++i){
+    const barCount = 5;
+
+    for(let i=0; i<barCount; ++i){
       const I: SegmentedBarChartData = { caption: 'Item #'+i, color: colors[0][i], segments: [] };
       this.data.push(I);
-      for(let j=0; j<5; ++j){
+      for(let j=0; j<barCount; ++j){
         const J: SegmentedBarChartData = { caption: 'Item #'+i+'/'+j, color: colors[1][j], segments: [] };
         I.segments.push(J);
-        for(let k=0; k<5; ++k){
+        for(let k=0; k<barCount; ++k){
           const K: SegmentedBarChartData = { caption: 'Item #'+i+'/'+j+'/'+k, color: colors[2][k], segments: [] };
           J.segments.push(K);
-          for(let l=0; l<5; ++l){
+          for(let l=0; l<barCount; ++l){
             const L: SegmentedBarChartData = { caption: 'Item #'+i+'/'+j+'/'+k+'/'+l, color: colors[3][l], segments: [] };
             K.segments.push(L);
-            for(let m=0; m<5; ++m){
-              const M: SegmentedBarChartData = { caption: 'Item #'+i+'/'+j+'/'+k+'/'+l+'/'+m, color: colors[4][m], value: this.randomInt(1,100) };
+            for(let m=0; m<barCount; ++m){
+              const M: SegmentedBarChartData = { caption: 'Item #'+i+'/'+j+'/'+k+'/'+l+'/'+m, color: colors[4][m], segments: [] };
               L.segments.push(M);
+              for(let n=0; n<barCount; ++n){
+                const N: SegmentedBarChartData = { caption: 'Item #'+i+'/'+j+'/'+k+'/'+l+'/'+m+'/'+n, color: colors[5][n], value: this.randomInt(1,10000)/this.randomInt(1, 10000) };
+                M.segments.push(N);
+              }
             }
           }
         }
