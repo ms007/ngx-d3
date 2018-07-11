@@ -7,8 +7,8 @@ The library has been developed with Angular 6. It should work with older version
 
 This repository is maintained by volunteers of [OPITZ CONSULTING Deutschland GmbH](https://www.opitz-consulting.com).
 
-![SegmentedBarChart example 1](https://github.com/opitzconsulting/ngx-d3/tree/master/projects/segmented-bar-chart/img/example1.png?raw=true)
-![SegmentedBarChart example 2](https://github.com/opitzconsulting/ngx-d3/tree/master/projects/segmented-bar-chart/img/example2.png?raw=true)
+![SegmentedBarChart example 1](https://raw.githubusercontent.com/opitzconsulting/ngx-d3/master/projects/segmented-bar-chart/img/example1.png)
+![SegmentedBarChart example 2](https://raw.githubusercontent.com/opitzconsulting/ngx-d3/master/projects/segmented-bar-chart/img/example2.png)
 
 There is a demo component `SegmentedBarChartDemoComponent` in this repository at https://github.com/opitzconsulting/ngx-d3.
 
