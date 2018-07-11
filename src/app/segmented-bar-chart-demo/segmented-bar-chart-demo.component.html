@@ -1,0 +1,10 @@
+<div style="text-align: center; margin-bottom: 20px;">
+  <button (click)="navigateToRandom();">navigate to random item</button>
+  <button (click)="initWithRandom();">init with random chart data</button>
+  <button (click)="initWithFrameworks();">init with static framework data</button>
+</div>
+
+<oc-segmented-bar-chart 
+  [data]="data" [width]="chartWidth"
+  (chartClick)="chartClicked($event)" (chartHover)="chartHovered($event)"
+  ></oc-segmented-bar-chart>

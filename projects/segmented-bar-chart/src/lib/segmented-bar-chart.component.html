@@ -1,0 +1,55 @@
+<div class="segmented-bar-chart-tooltip"></div>
+<svg class="segmented-bar-chart" [attr.width]="width" [attr.height]="height">
+  <g class="axis-x" transform="translate(0.5, 0.5)">
+    <line [attr.x1]="barOffsetLeft" [attr.x2]="width-barOffsetRight-1" [attr.y1]="barOffsetTop" [attr.y2]="barOffsetTop"></line>
+    <g class="ticks">
+      <g class="tick" *ngFor="let tick of ticks; let idx = index; let last = last">
+        <line [attr.x1]="tick.x" [attr.x2]="tick.x" [attr.y1]="barOffsetTop-5" [attr.y2]="barOffsetTop"></line>
+        <text [attr.x]="tick.x" [attr.y]="barOffsetTop-12" [attr.fill-opacity]="tick.opacity">
+         {{ tick.value | number: '1.'+tick.decimals+'-'+tick.decimals }}
+        </text>
+      </g>
+    </g>
+  </g>
+  <g class="segments" transform="translate(0.5, 0.5)">
+    <text class="segment-text-measurement" [attr.fill-opacity]="0">Hg</text>
+    <rect class="clickable-area"
+          [attr.x]="-.5" [attr.y]="-.5" [attr.width]="width" [attr.height]="height"
+          [attr.fill]="'#ffffff'" [attr.fill-opacity]="0"
+          (click)="clickedChart($event)"
+      ></rect>
+    <g class="segment" *ngFor="let segment of segments; let idx = index"  [attr.segments-index]="idx"
+      [attr.tooltip]="getTooltipText(segment)"
+      (mouseover)="overSegment($event)" (mousemove)="moveSegment($event);" (mouseout)="outSegment($event)" (click)="clickedSegment(segment)">
+      <text [attr.x]="segment.text.x" [attr.y]="segment.text.y" 
+            [attr.fill]="segment.color" [attr.fill-opacity]="segment.text.opacity"
+        >{{ segment.data.caption }}</text>
+      <rect [attr.x]="segment.rect.x" [attr.y]="segment.rect.y" [attr.width]="segment.rect.width" [attr.height]="segment.rect.height"
+            [attr.fill]="segment.color" [attr.fill-opacity]="segment.rect.opacity" 
+            [attr.stroke]="segment.color" [attr.stroke-opacity]="segment.rect.opacity"
+        ></rect>
+    </g>
+  </g>
+  <g class="breadcrumbs" transform="translate(0.5, 0.5)">
+    <g *ngIf="breadcrumbs.length>0">
+      <g class="breadcrumb-home" (click)="navigateTo(null)">
+        <circle class="outer" cx=6.5 cy=6.5 r=5></circle>
+        <circle class="inner" cx=6.5 cy=6.5 r=2></circle>
+      </g>
+      <g class="breadcrumb-arrow">
+        <line x1="17" x2="23" y1="3.5" y2="6.5"></line>
+        <line x1="17" x2="23" y1="9.5" y2="6.5"></line>
+      </g>
+    </g>
+    <g class="breadcrumb" *ngFor="let breadcrumb of breadcrumbs; let last = last">
+      <text [attr.x]="breadcrumb.x" [attr.y]="breadcrumb.y" 
+            [attr.fill]="breadcrumb.color" [attr.fill-opacity]="breadcrumb.opacity"
+            (click)="navigateTo(breadcrumb.data.origin)"
+        >{{ breadcrumb.data.caption }}</text>
+      <g class="breadcrumb-arrow" *ngIf="!last">
+        <line [attr.x1]="breadcrumb.x+5" [attr.x2]="breadcrumb.x+10" [attr.y1]="breadcrumb.y-6.5" [attr.y2]="breadcrumb.y-3.5"></line>
+        <line [attr.x1]="breadcrumb.x+5" [attr.x2]="breadcrumb.x+10" [attr.y1]="breadcrumb.y-0.5" [attr.y2]="breadcrumb.y-3.5"></line>
+      </g>
+    </g>
+  </g>
+</svg>

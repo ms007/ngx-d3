@@ -196,6 +196,46 @@
           }
         }
       }
+    },
+    "segmented-bar-chart": {
+      "root": "projects/segmented-bar-chart",
+      "sourceRoot": "projects/segmented-bar-chart/src",
+      "projectType": "library",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-ng-packagr:build",
+          "options": {
+            "tsConfig": "projects/segmented-bar-chart/tsconfig.lib.json",
+            "project": "projects/segmented-bar-chart/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "project": "projects/segmented-bar-chart/ng-package.prod.json"
+            }
+          }
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "main": "projects/segmented-bar-chart/src/test.ts",
+            "tsConfig": "projects/segmented-bar-chart/tsconfig.spec.json",
+            "karmaConfig": "projects/segmented-bar-chart/karma.conf.js"
+          }
+        },
+        "lint": {
+          "builder": "@angular-devkit/build-angular:tslint",
+          "options": {
+            "tsConfig": [
+              "projects/segmented-bar-chart/tsconfig.lib.json",
+              "projects/segmented-bar-chart/tsconfig.spec.json"
+            ],
+            "exclude": [
+              "**/node_modules/**"
+            ]
+          }
+        }
+      }
     }
   },
   "defaultProject": "ngx-d3"

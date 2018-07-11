@@ -1,0 +1,58 @@
+div.segmented-bar-chart-tooltip {
+  position: fixed;
+  display: none;
+  opacity: 0;
+  font: 12px sans-serif;
+  color: #ffffff;
+  background-color: rgba(35, 47, 52, .8);
+  padding: 5px;
+}
+
+svg.segmented-bar-chart text {
+  font-family: Roboto, Arial, Helvetica, sans-serif;
+  font-size: 11px;
+}
+svg.segmented-bar-chart .axis-x text {
+  font-size: 10px;
+  text-anchor: middle; 
+}
+svg.segmented-bar-chart .segments text, svg.segmented-bar-chart .breadcrumbs text {
+  text-anchor: end;
+}
+svg.segmented-bar-chart .breadcrumbs text {
+  cursor: pointer;
+}
+svg.segmented-bar-chart .breadcrumbs text:hover {
+  text-decoration: underline;
+}
+svg.segmented-bar-chart .breadcrumbs text:last-child:hover {
+  text-decoration: none;
+  cursor: default;
+}
+svg.segmented-bar-chart .segment {
+  opacity: .7;
+  cursor: default;
+}
+svg.segmented-bar-chart .segment:hover {
+  opacity: 1;
+}
+svg.segmented-bar-chart .axis-x line {
+  stroke: #777777;
+}
+svg.segmented-bar-chart .axis-x text {
+  fill: #777777;
+}
+svg.segmented-bar-chart .breadcrumb-arrow {
+  stroke: #000000;
+}
+.breadcrumb-home {
+  cursor: pointer;
+}
+.breadcrumb-home .outer {
+  fill: #ffffff;
+  stroke: #000000;
+}
+.breadcrumb-home .inner {
+  fill: #000000;
+  stroke: #000000;
+}
