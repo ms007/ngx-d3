@@ -1,8 +1,23 @@
 {
-  "name": "segmented-bar-chart",
+  "name": "@opitzconsulting/segmented-bar-chart",
   "version": "0.0.1",
+  "description": "animated horizontal multi level bar chart component",
+  "author": {
+    "name": "OPITZ CONSULTING Deutschland GmbH",
+    "url": "https://www.opitz-consulting.com/"    
+  },
+  "license": "Apache License 2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/opitzconsulting/ngx-d3.git"
+  },
   "peerDependencies": {
     "@angular/common": "^6.0.0-rc.0 || ^6.0.0",
-    "@angular/core": "^6.0.0-rc.0 || ^6.0.0"
-  }
+    "@angular/core": "^6.0.0-rc.0 || ^6.0.0",
+    "d3": "^5.4.0"
+  },
+  "devDependencies": {
+    "@types/d3": "^5.0.0"
+  },
+  "dependencies": {}
 }

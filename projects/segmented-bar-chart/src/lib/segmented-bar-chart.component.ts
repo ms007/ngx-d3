@@ -1,8 +1,10 @@
-import { Component, OnInit, Input, ElementRef, Inject, LOCALE_ID } from '@angular/core';
-
-import * as d3 from 'd3';
+import { Component, OnInit, Input, ElementRef, Inject, LOCALE_ID, OnChanges, SimpleChanges, Output, EventEmitter } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
+import * as d3 from 'd3';
 
+/**
+ * definition of external used chart item
+ */
 export interface SegmentedBarChartData {
   /** caption for segment entry */
   caption: string;
@@ -14,28 +16,55 @@ export interface SegmentedBarChartData {
   segments?: SegmentedBarChartData[];
 };
 
+/**
+ * definition of internal used chart item
+ */
+export interface InternalSegmentedBarChartData extends SegmentedBarChartData {
+  /** reference to origin chart item */
+  origin: SegmentedBarChartData;
+  /** overloaded segments for current entry with origin references */
+  segments: InternalSegmentedBarChartData[];
+}
+
+/**
+ * definition of segments
+ */
 export interface SegmentedBarChartSegment  {
-  data: SegmentedBarChartData;
-  parent: SegmentedBarChartData;
+  /** reference to chart item */
+  data: InternalSegmentedBarChartData;
+  /** reference to parent chart item, null at first level */
+  parent: InternalSegmentedBarChartData | null;
+  /** value for chart item */
   value: number;
+  /** color for chart item */
   color: string;
+  /** rect definition for chart item bar / segment */
   rect: {
+    /** x coordinate for chart item bar */
     x: number,
+    /** y corrdinate for chart item bar */
     y: number,
+    /** width for chart item bar */
     width: number,
+    /** height for chart item bar */
     height: number,
+    /** opacity for chart item bar */
     opacity: number
   },
+  /** text definition for chart item text */
   text: {
+    /** x coordinate for chart item text */
     x: number,
+    /** y coordinate for chart item text */
     y: number,
+    /** opacity for chart item text */
     opacity: number
   }
 }
 
 /**
  * describes one x axis tick element
- */
+*/
 export interface SegmentedBarChartTick {
   /** value for tick */
   value: number;
@@ -52,7 +81,7 @@ export interface SegmentedBarChartTick {
  */
 export interface SegmentedBarChartBreadcrumb {
   /** reference to data */
-  data: SegmentedBarChartData, 
+  data: InternalSegmentedBarChartData, 
   /** x coordinate for breadcrumb text */
   x: number, 
   /** y coordinate for breadcrumb text */
@@ -68,15 +97,21 @@ export interface SegmentedBarChartBreadcrumb {
   templateUrl: './segmented-bar-chart.component.html',
   styleUrls: ['./segmented-bar-chart.component.css']
 })
-export class SegmentedBarChartComponent implements OnInit {
-
+export class SegmentedBarChartComponent implements OnInit, OnChanges {
+  /** bar chart data */
   @Input() data: SegmentedBarChartData[] = [];
-
-  @Input() width: number = 600;
-
-  /*@Input() height: number = 400;*/
+  /** bar chart width */
+  @Input() width: number = 800;
+  /** duration in milliseconds for one animation cycle */
+  @Input() duration: number = 2500;
+  /** fired when user clicks on a chart entry */
+  @Output() chartClick: EventEmitter<SegmentedBarChartData> = new EventEmitter();
+  /** fired when user hovers a chart entry */
+  @Output() chartHover: EventEmitter<SegmentedBarChartData> = new EventEmitter();
+  /** copy of chart data for internal use only */
+  public chartData: InternalSegmentedBarChartData[] = [];
+  /** bar chart height will be calculated automatically */
   public height: number = 0;
-
   /** reference to svg element */
   protected svg: SVGElement;
   /** height of one bar */
@@ -92,36 +127,45 @@ export class SegmentedBarChartComponent implements OnInit {
   /** currently visible segments and bars */
   public segments: SegmentedBarChartSegment[] = [];
   /** currently active parent segment, only filled if nested child is selected */
-  public activeSegment: SegmentedBarChartData = null;
+  public activeSegment: InternalSegmentedBarChartData = null;
   /** tick definition for x axis */
   public ticks: SegmentedBarChartTick[] = [];
   /** breadcrumb entries */
   public breadcrumbs: SegmentedBarChartBreadcrumb[] = [];
-  /** current  for x axis */
-  public factor: number = 1;
+  /** current factor for x axis */
+  protected factor: number = 1;
+  /** current decimals for x axis */
+  protected decimals: number = 0;
   /** true when animation is still active to prevent user actions */
   protected animationActive: boolean = false;
-
-  /** duration in milliseconds for one animation cycle */
-  protected duration: number = 2500;
-
-  
+  /** stores whether chart component has been initialized */
+  protected initialized = false;
+  /** callback reference, which should be executed when current animation has finished */
+  protected animationFinshed: () => void;
 
   constructor(
     private element: ElementRef,
     @Inject(LOCALE_ID) private locale: string
   ) { }
 
-
-
   ngOnInit() {
+    // get reference to svg element
     this.svg = (this.element.nativeElement as HTMLElement).querySelector('svg');
-
-    window['SBCC'] = this;
-
-    console.log(this.data);
-    this.initialize();
+    // get reference to tooltip element
+    this.tooltip = this.element.nativeElement.querySelector('div.segmented-bar-chart-tooltip') as HTMLDivElement;
+    // mark chart as initialized
+    this.initialized = true;
+    // react to chart data changes
+    this.chartDataChanged();
   };
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if(!this.initialized) return ;
+    // if data has changed: hook data change animation
+    if(changes.data){ this.chartDataChanged(); }
+    // if chart width has changed: hook width change animation
+    if(changes.width){ this.hookWidthChangedAnimation(); }
+  }
 
   /**
    * Simulates a click on a html/svg element to activate angulars change detection for animations.
@@ -140,13 +184,48 @@ export class SegmentedBarChartComponent implements OnInit {
     element.dispatchEvent(event);
   };
 
-  protected getParent(item: SegmentedBarChartData): SegmentedBarChartData {
-    const r = (items: SegmentedBarChartData[], parent: SegmentedBarChartData) => {
+  /**
+   * Generates a random color for a chart item.
+   * Todo: move to common library?
+   */
+  protected generateRandomColor(): string {
+    const hue2rgb = (p: number, q: number, t: number) => {
+      if(t < 0) t += 1; 
+      if(t > 1) t -= 1; 
+      if(t < 1/6) return p + (q - p) * 6 * t;
+      if(t < 1/2) return q;
+      if(t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+      return p;
+    };
+    const h = (Math.random() + 0.618033988749895) % 1;
+    const s = .5;
+    const l = .6;
+    let q = l + s - l * s;
+    let p = 2 * l - q;
+    const r = hue2rgb(p, q, h + 1/3);
+    const g = hue2rgb(p, q, h);
+    const b = hue2rgb(p, q, h - 1/3);
+    const color = '#' 
+                + Math.round(r * 255).toString(16)
+                + Math.round(g * 255).toString(16)
+                + Math.round(b * 255).toString(16);
+    return color;
+  };
+
+  /**
+   * Search parent item for given item, returns null if item is at top level or no parent is found.
+   * @param item 
+   */
+  protected getParent(item: InternalSegmentedBarChartData): InternalSegmentedBarChartData | null {
+    // inline function for recursive search
+    const r = (items: InternalSegmentedBarChartData[], parent: InternalSegmentedBarChartData) => {
+      // check whether item is in segment list, if true return parent
       for(let i=0; i<items.length; ++i){
         if(items[i]===item){
           return parent;
         }
       }
+      // check segments of current item recursive
       for(let i=0; i<items.length; ++i){
         if(items[i].segments && items[i].segments.length>0){
           const result = r(items[i].segments, items[i]);
@@ -157,12 +236,16 @@ export class SegmentedBarChartComponent implements OnInit {
       }
       return null;
     };
-    return r(this.data, null);
+    return r(this.chartData, null);
   };
 
-  protected getSegments(parent: SegmentedBarChartData): SegmentedBarChartData[] {
+  /**
+   * Returns an array for the given item with child segments. If the item doesn't have children, an empty array is returned.
+   * @param parent 
+   */
+  protected getSegments(parent: InternalSegmentedBarChartData): InternalSegmentedBarChartData[] {
     if(parent===null){
-      return this.data;
+      return this.chartData;
     }
     else if(parent.segments && parent.segments.length>0){
       return parent.segments;
@@ -172,8 +255,12 @@ export class SegmentedBarChartComponent implements OnInit {
     }
   };
 
-  protected getValue(item: SegmentedBarChartData): number {
-    const v = (item: SegmentedBarChartData): number => {
+  /**
+   * Returns the value for the given item by recursive calculation.
+   * @param item 
+   */
+  protected getValue(item: InternalSegmentedBarChartData): number {
+    const v = (item: InternalSegmentedBarChartData): number => {
       const segments = this.getSegments(item);
       if(segments && segments.length>0){
         let result = 0;
@@ -189,7 +276,11 @@ export class SegmentedBarChartComponent implements OnInit {
     return v(item);
   };
 
-  protected getMaxValue(parent: SegmentedBarChartData = null): number {
+  /**
+   * Returns the maximum value for the children of the given item.
+   * @param parent 
+   */
+  protected getMaxValue(parent: InternalSegmentedBarChartData = null): number {
     const segments = this.getSegments(parent);
     if(segments && segments.length>0){
       let result = 0;
@@ -206,13 +297,93 @@ export class SegmentedBarChartComponent implements OnInit {
     }
   };
 
-  public console = console;
+  /** reference to tooltip div element */
+  private tooltip: HTMLDivElement;
+
+  /**
+   * Returns Tooltip text for the given segment
+   * @param segment 
+   */
+  public getTooltipText(segment: SegmentedBarChartSegment): string {
+    const text = segment.data.caption + ' (' + new DecimalPipe(this.locale).transform(this.getValue(segment.data), '1.'+this.decimals+'-'+this.decimals) + ')';
+    return text;
+  }
+
+  /**
+   * returns svg g element for segment target (could be rect or text elements)
+   * @param element 
+   */
+  protected findSegment(element: Element): SVGGElement {
+    // make sure to have a g element as target
+    while(element.nodeName !== 'g'){ element = (element.parentElement as Element); }
+    return (element as SVGGElement);
+  }
+
+  /**
+   * fired when mouse enters a segment element and shows tooltip
+   * @param event 
+   */
+  public overSegment(event: MouseEvent){
+    const target = this.findSegment(event.target as Element);
+    // get tooltip-text of segment
+    const txt = target.getAttribute('tooltip');
+    // show tooltip and assign text
+    d3.select(this.tooltip)
+      .html(txt)
+      .style('display', 'block')
+      .transition()
+      .duration(250)
+      .style('opacity', 1);
+    // get index
+    const idx = parseInt(target.getAttribute('segments-index'),10);
+    // emit chart click event
+    this.chartHover.emit(this.segments[idx].data.origin);
+  };
+
+  /**
+   * fired when mouse moves over a segment element and adjusts tooltip
+   * @param event 
+   */
+  public moveSegment(event: MouseEvent){
+    // aggregate scroll positions, because event.page* properties are relative to top left corner of document
+    let offsetX = 0;
+    let offsetY = 0;
+    let element = (this.tooltip.parentElement as HTMLElement);
+    while(element){
+      offsetX += element.scrollLeft;
+      offsetY += element.scrollTop;
+      element = element.parentElement;
+    }
+    // adjust tooltip
+    d3.select(this.tooltip)
+      .style('top', (event.pageY - offsetY + 10)+'px')
+      .style('left', (event.pageX - offsetX + 10)+'px');
+  };
+
+  /**
+   * fired when mouse leaves a segment element and hides tooltip
+   * @param event 
+   */
+  public outSegment(event: MouseEvent){
+    // hide tooltip
+    d3.select(this.tooltip)
+      .transition()
+      .duration(250)
+      .style('opacity',0)
+      .on('end', () => {
+        d3.select(this.tooltip).style('display', 'none')
+      });
+  };
 
   /**
    * Triggered when a user clicks on a chart segment / bar to go down in hierarchy.
    * @param segment 
    */
   public clickedSegment(segment: SegmentedBarChartSegment){
+    // hide tooltip
+    this.outSegment(undefined);
+    // emit chart click event
+    this.chartClick.emit(segment.data.origin);
     // make sure, animation isn't running
     if(this.animationActive) return ;
     // make sure, there are further child segments
@@ -238,6 +409,9 @@ export class SegmentedBarChartComponent implements OnInit {
     }
   }
 
+  /**
+   * initialize chart height by maximal bar count
+   */
   protected initHeight(): void {
     let maxBarCount = 0;
     const r = (segments: SegmentedBarChartData[]) => {
@@ -250,12 +424,14 @@ export class SegmentedBarChartComponent implements OnInit {
         }
       });
     };
-    r(this.data);
-
+    r(this.chartData);
     this.height = this.barOffsetTop + (maxBarCount * this.barHeight) + (this.barSpacing * (maxBarCount+1));
   };
 
-  protected initOffsetLeft(): void {
+  /**
+   * Returns maximum caption width of all items.
+   */
+  protected getMaxCaptionWidth(): number {
     const text = (this.svg.querySelector('text.segment-text-measurement') as SVGTextElement);
     let maxWidth = 0;
     const r = (segments: SegmentedBarChartData[]) => {
@@ -267,51 +443,24 @@ export class SegmentedBarChartComponent implements OnInit {
           r(segment.segments);
       });
     };
-    r(this.data);
-    console.log('maxWidth:%o',maxWidth);
+    r(this.chartData);
+    return maxWidth;
+  };
+
+  /**
+   * initialize bar left offset by maximal captio width
+   */
+  protected initOffsetLeft(): void {
+    // get maximum caption width for the items
+    const maxWidth = this.getMaxCaptionWidth();
+    // calculate left offset
     this.barOffsetLeft = maxWidth + this.barSpacing;
   }
 
-  protected initialize(): void {
-    this.initHeight();
-    this.initOffsetLeft();
-
-    const maxValue = this.getMaxValue();
-    const maxBarWidth = (this.width - this.barOffsetLeft - this.barOffsetRight);
-    const factor = this.factor = ((maxBarWidth-1) / maxValue);
-
-    this.segments = [];
-    let offsetY = this.barOffsetTop + this.barSpacing;
-
-    this.data.forEach( (data) => {
-      const value = this.getValue(data);
-      const segment: SegmentedBarChartSegment = {
-        data: data,
-        parent: null,
-        value: value,
-        color: data.color,
-        rect: {
-          x: this.barOffsetLeft,
-          y: offsetY,
-          width: value * this.factor,
-          height: this.barHeight,
-          opacity: 1
-        },
-        text: {
-          x: this.barOffsetLeft - this.barSpacing,
-          y: offsetY + this.barHeight/2+4,
-          opacity: 1
-        }
-      };
-      offsetY += segment.rect.height + this.barSpacing;
-      this.segments.push(segment);
-    });
-
-    this.ticks = this.calcTicks(maxValue);
-
-
-  };
-
+  /**
+   * Returns segment data reference for given item
+   * @param data 
+   */
   protected getInternalData(data: SegmentedBarChartData): SegmentedBarChartSegment {
     let result;
     for(let i=0; i<this.segments.length; ++i){
@@ -323,7 +472,14 @@ export class SegmentedBarChartComponent implements OnInit {
     return result;
   }
 
+  /**
+   * returns a valid color, if no color is given a random color will be used
+   * @param color 
+   */
   protected validateColor(color: string | undefined): string {
+    if(!color){
+      return this.generateRandomColor();
+    }
     return color;
   };
 
@@ -331,16 +487,36 @@ export class SegmentedBarChartComponent implements OnInit {
    * calculates the tick factor 
    * @param item 
    */
-  protected calcTickFactor(item: SegmentedBarChartData): number {
+  protected calcTickFactor(item: InternalSegmentedBarChartData): number {
     const maxValue = this.getMaxValue(item);
     const maxBarWidth = (this.width - this.barOffsetLeft - this.barOffsetRight);
     return this.factor = ((maxBarWidth-1) / maxValue);
   };
 
-  public navigateTo(item: SegmentedBarChartData): void {
+  /**
+   * Starts animation chain to display given item segements. Each step up or down will be animated like user has 
+   * clicked on it.
+   * @param navigateToItem item reference, which segments should be displayed
+   */
+  public navigateTo(navigateToItem: SegmentedBarChartData): void {
+    // find item reference by original item:
+    let item: InternalSegmentedBarChartData = null;
+    const r = (items: InternalSegmentedBarChartData[]) => {
+      for(let i=0; i<items.length; ++i){
+        if(navigateToItem === items[i].origin){
+          item = items[i];
+          break;
+        }
+        else if(items[i].segments && items[i].segments.length > 0){
+          r(items[i].segments);
+        }
+      }
+    };
+    r(this.chartData);
+    // make sure item isn't current item yet
     if(item === this.activeSegment) return ;
+    // make sure there is currently no running animation
     if(this.animationActive) return ;
-    console.warn('navigateTo item:%o',item);
     // generate parent tree for passed item
     let parentsA = [item];
     do {
@@ -358,7 +534,7 @@ export class SegmentedBarChartComponent implements OnInit {
         parentsB.unshift(item);
       }
     } while(item!==null);
-    // reduce parents
+    // reduce both trees, so remove parents which are the same for both trees.
     let done = false;
     while(!done){
       const parA = parentsA[0];
@@ -371,48 +547,364 @@ export class SegmentedBarChartComponent implements OnInit {
         done = true;
       }
     }
-    console.log('parentsA:%o parentsB:%o',parentsA,parentsB);
-    // start animation cycles
+    /**
+     * inline function for level up animated navigation 
+     */
     const navigateUp = () => {
+      // switch to next level when current navigation has finished
       this.animationFinshed = () => {
         delete this.animationFinshed;
         navigate();
       };
+      // get next level up parent from tree array
+      // -> just need for remove it from the array
       const parent = parentsB.shift();
-      console.warn('navigateUp parent:%o',parent);
+      // simulate user click on the white space of the chart to start level up animated navigation
       const clickElement = (this.svg.querySelector('rect.clickable-area') as SVGRectElement);
       this.simulateClick(clickElement);
     };
-
+    /**
+     * inline function for level down animated navigation
+     */
     const navigateDown = () => {
+      // switch to next level when current navigation has finised
       this.animationFinshed = () => {
         delete this.animationFinshed;
         navigate();
       };
+      // get next level down parent from the tree array
       const parent = parentsA.shift();
-      console.warn('navigateDown parent:%o',parent);
+      // identify and reference child in current segments for new parent
       const data = this.getInternalData(parent);
+      // get index of new parent in current children
       const index = this.segments.indexOf(data);
+      // simulate user click on the segment of the new parent to start level down animated navigation
       const segmentElement = (this.svg.querySelector('g.segment[segments-index="'+index+'"]') as SVGGElement);
       this.simulateClick(segmentElement);
     };
-
+    /**
+     * inline function for level up and down animated navigation
+     */
     const navigate = () => {
+      // while parentsB array contains items, do level up navigation
       if(parentsB.length > 0){
         navigateUp();
       }
+      // while parentsB array contains items, do level down navigation
       else if(parentsA.length > 0){
         navigateDown();
       }
     };
-
+    // start asynchron level up and down animated navigation
     navigate();
-
   };
 
-  
+  //*******************************************************************************************************************
+  // reactions to chart data change
+  //*******************************************************************************************************************
 
-  protected animationFinshed: () => void;
+  /**
+   * Reaction on chart data changes, hides current chart data and then shows new chart data
+   */
+  protected chartDataChanged(): void {
+    // exec chart data hide
+    const execHide = () => {
+      delete this.animationFinshed;
+      if(this.chartData.length > 0){
+        this.hideChartData(() => { this.showChartData(); });
+      }
+      else {
+        this.showChartData();
+      }
+    };
+    // hook current animation and hide current data
+    if(this.animationActive){
+      this.animationFinshed = execHide;
+    }
+    else {
+      execHide();
+    }
+  };
+
+  /**
+   * Hides chart data animated when previously chart data was assigned.
+   */
+  protected hideChartData(onComplete: () => void): void {
+    // callback function to synchronize multiple asynchron animations
+    let endCounter = 2;
+    const endCallback = () => {
+      if(--endCounter===0){
+        this.animationActive = false;
+
+        this.chartData = [];
+        this.breadcrumbs = [];
+        this.ticks = [];
+        this.activeSegment = null;
+
+        onComplete();
+      }
+    };
+    // mark animation as active
+    this.animationActive = true;
+    // start bar animation
+    d3.select(this.svg)
+      .select('g.segments')
+      .interrupt()
+      .transition()
+      .duration(this.duration)
+      .attrTween('tween-segments', () => {
+        // initialize interpolations for each element
+        const interpolate = { rect: { width: [], opacity: [] }, text: { opacity: [] } };
+        this.segments.forEach( (segment, idx) => {
+          interpolate.rect.width[idx] = d3.interpolate(this.segments[idx].rect.width, 0);
+          interpolate.rect.opacity[idx] = d3.interpolate(this.segments[idx].rect.opacity, 0);
+          interpolate.text.opacity[idx] = d3.interpolate(this.segments[idx].text.opacity, 0);
+        });
+        // return factory function
+        return (t: number): string => {
+          this.segments.forEach( (segment, idx) => {
+            if(interpolate.rect.width[idx]) segment.rect.width = interpolate.rect.width[idx](t);
+            if(interpolate.rect.opacity[idx]) segment.rect.opacity = interpolate.rect.opacity[idx](t);
+            if(interpolate.text.opacity[idx]) segment.text.opacity = interpolate.text.opacity[idx](t);
+          });
+          return '';
+        }
+      })
+      .on('end', endCallback);
+    // start tick animation
+    d3.select(this.svg)
+      .select('g.ticks')
+      .interrupt()
+      .transition()
+      .duration(this.duration)
+      .attrTween('tween-ticks', () => {
+        // initialize interpolations for each element
+        const interpolate = { opacity: [], x: [], value: [] };
+        for(let i=0; i<this.ticks.length; ++i){
+          interpolate.x[i] = d3.interpolate(this.ticks[i].x, this.barOffsetLeft);
+          interpolate.value[i] = d3.interpolate(this.ticks[i].value, 0);
+          interpolate.opacity[i] = d3.interpolate(this.ticks[i].opacity, 0);
+        }
+        // return factory function
+        return (t: number): string => {
+          const t1 = (t<0.5) ? t*2 : 1;
+          const t2 = (t>=.5) ? (t-.5)*2 : 0;
+          // exec interpolation for each tick
+          this.ticks.forEach( (tick, idx) => {
+            if(interpolate.x[idx]) tick.x = interpolate.x[idx](t);
+            if(interpolate.value[idx]) tick.value = interpolate.value[idx](t);
+            if(interpolate.opacity[idx]) tick.opacity = interpolate.opacity[idx](t);
+          });
+          return '';
+        }
+      })
+      .on('end', endCallback);
+  }
+
+  //-------------------------------------------------------------------------------------------------------------------
+  /**
+   * Shows chart data animated when previously no data was assigned.
+   */
+  protected showChartData(): void {
+    // make deep copy of chart data and assign origin references
+    this.chartData = [];
+    const r = (origins: SegmentedBarChartData[], items: InternalSegmentedBarChartData[]) => {
+      for(let i=0; i<origins.length; ++i){
+        const item: InternalSegmentedBarChartData = {
+          caption: origins[i].caption,
+          color: origins[i].color,
+          value: origins[i].value,
+          segments: (origins[i].segments && origins[i].segments.length>0) ? [] : undefined,
+          origin: origins[i]
+        };
+        if(item.segments){
+          r(origins[i].segments, item.segments);
+        }
+        items.push(item);
+      }
+    };
+    r(this.data, this.chartData);
+    // calculate chart height
+    this.initHeight();
+    // calculate chart left offset 
+    this.initOffsetLeft();
+    // get max value for new level
+    const maxValue = this.getMaxValue();
+    // calc tick factor for segment width
+    this.calcTickFactor(null);
+    // initialize segments
+    this.segments = [];
+    // initialize top offset for segments
+    let offsetY = this.barOffsetTop + this.barSpacing;
+    // initialize first level for segment data
+    this.chartData.forEach( (data) => {
+      const value = this.getValue(data);
+      const segment: SegmentedBarChartSegment = {
+        data: data,
+        parent: null,
+        value: value,
+        color: this.validateColor(data.color),
+        rect: {
+          x: this.barOffsetLeft,
+          y: offsetY,
+          width: value * this.factor,
+          height: this.barHeight,
+          opacity: 1
+        },
+        text: {
+          x: this.barOffsetLeft - this.barSpacing,
+          y: offsetY + this.barHeight/2+4,
+          opacity: 1
+        }
+      };
+      offsetY += segment.rect.height + this.barSpacing;
+      this.segments.push(segment);
+    });
+    // calc ticks
+    this.ticks = this.calcTicks(maxValue);
+    // callback function to synchronize multiple asynchron animations
+    let endCounter = 2;
+    const endCallback = () => {
+      if(--endCounter===0){
+        this.animationActive = false;
+        if(this.animationFinshed){
+          this.animationFinshed();
+        }
+      }
+    };
+    // mark animation as active
+    this.animationActive = true;
+    // start bar animation
+    d3.select(this.svg)
+      .select('g.segments')
+      .interrupt()
+      .transition()
+      .duration(this.duration)
+      .attrTween('tween-segments', () => {
+        // initialize interpolations for each element
+        const interpolate = { rect: { width: [], opacity: [] }, text: { opacity: [] } };
+        this.segments.forEach( (segment, idx) => {
+          interpolate.rect.width[idx] = d3.interpolate(0, this.segments[idx].rect.width);
+          interpolate.rect.opacity[idx] = d3.interpolate(0, this.segments[idx].rect.opacity);
+          interpolate.text.opacity[idx] = d3.interpolate(0, this.segments[idx].text.opacity);
+        });
+        // return factory function
+        return (t: number): string => {
+          this.segments.forEach( (segment, idx) => {
+            if(interpolate.rect.width[idx]) segment.rect.width = interpolate.rect.width[idx](t);
+            if(interpolate.rect.opacity[idx]) segment.rect.opacity = interpolate.rect.opacity[idx](t);
+            if(interpolate.text.opacity[idx]) segment.text.opacity = interpolate.text.opacity[idx](t);
+          });
+          return '';
+        }
+      })
+      .on('end', endCallback);
+    // start tick animation
+    d3.select(this.svg)
+      .select('g.ticks')
+      .interrupt()
+      .transition()
+      .duration(this.duration)
+      .attrTween('tween-ticks', () => {
+        // initialize interpolations for each element
+        const interpolate = { opacity: [], x: [], value: [] };
+        for(let i=0; i<this.ticks.length; ++i){
+          interpolate.x[i] = d3.interpolate(this.barOffsetLeft, this.ticks[i].x);
+          interpolate.value[i] = d3.interpolate(0, this.ticks[i].value);
+          interpolate.opacity[i] = d3.interpolate(0, this.ticks[i].opacity);
+        }
+        // return factory function
+        return (t: number): string => {
+          const t1 = (t<0.5) ? t*2 : 1;
+          const t2 = (t>=.5) ? (t-.5)*2 : 0;
+          // exec interpolation for each tick
+          this.ticks.forEach( (tick, idx) => {
+            if(interpolate.x[idx]) tick.x = interpolate.x[idx](t);
+            if(interpolate.value[idx]) tick.value = interpolate.value[idx](t);
+            if(interpolate.opacity[idx]) tick.opacity = interpolate.opacity[idx](t);
+          });
+          return '';
+        }
+      })
+      .on('end', endCallback);
+  };
+
+  //*******************************************************************************************************************
+  // reactions to chart width change 
+  //*******************************************************************************************************************
+
+  /** defines hook callback function, when width change animation should be executed once */
+  protected widthChangedAnimationHook: Function;
+
+  /**
+   * Checks whether an animation is running and set a hook to execute width change animation after current animation
+   * and before next animation.
+   */
+  protected hookWidthChangedAnimation(): void {
+    // if an animation is running: wait until current animation is finished and then start width animation
+    if(this.animationActive){
+      const oldAnimationFinished = this.animationFinshed;
+      if(!this.widthChangedAnimationHook){
+        this.widthChangedAnimationHook = () => {
+          this.widthChangedAnimation(() => {
+            this.animationFinshed = oldAnimationFinished;
+            if(this.animationFinshed) this.animationFinshed();
+          });
+          delete this.widthChangedAnimationHook;
+        };
+        this.animationFinshed = () => {
+          delete this.animationFinshed;
+          this.widthChangedAnimationHook();
+        };
+      }
+    }
+    // if no animation is active: directly start with width animation
+    else {
+      this.widthChangedAnimation(() => {});
+    }
+  };
+
+  /**
+   * Starts animation for changing width of chart.
+   */
+  protected widthChangedAnimation(onFinished: (()=>void)): void {
+    // callback function to synchronize multiple asynchron animations
+    let endCounter = 2;
+    const endCallback = () => {
+      if(--endCounter===0) onFinished();
+    };
+    // calculate max value for current parent segments
+    const maxValue = this.getMaxValue(this.activeSegment);
+    // start animated tick change, use shorter duration
+    this.animateTicks('down', maxValue, endCallback, 100);
+    // recalc tick factor, used for bar width calculation
+    this.calcTickFactor(this.activeSegment);
+    // start segments animation with shorter duration
+    d3.select(this.svg)
+      .select('g.segments')
+      .interrupt()
+      .transition()
+      .duration(100)
+      .attrTween('tween-segments', () => {
+        // initialize interpolations for each element
+        const interpolate = { rect: { width: [] } };
+        this.segments.forEach( (segment, idx) => {
+          interpolate.rect.width[idx] = d3.interpolate(segment.rect.width, segment.value * this.factor);
+        });
+        // return factory function
+        return (t: number): string => {
+          // during animation assign new properties
+          this.segments.forEach( (segment, idx) => {
+            if(interpolate.rect.width[idx]) segment.rect.width = interpolate.rect.width[idx](t);
+          });
+          return '';
+        }
+      })
+      .on('end', () => {
+        // execute finish callback
+        endCallback();
+      });
+  };
 
   //*******************************************************************************************************************
   // x axis tick calculation and animation
@@ -448,26 +940,28 @@ export class SegmentedBarChartComponent implements OnInit {
       // initialize tick count
       tickCount = maxTickCount + 1;
       // calc distance between two ticks
-      tickWidth = maxWidth / (tickCount);
+      tickWidth = (tickCount <= 1) ? maxWidth : (maxWidth) / (tickCount-1);
       // calc value between two ticks
-      tickValue = maxValue / (tickCount);
+      tickValue = (tickCount <= 1) ? maxValue : (maxValue) / (tickCount-1);
       // use maximal value to determine decimal places and factor for rounding display values
-      // -> while at least one tick value with used factor is less then 1 reduce factor and enlarge decimal places
+      // -> while at least one tick value with used factor is less then 0.9 reduce factor and enlarge decimal places
       let factor = 1; 
       decimals = 0;
       let clcTickValue = 0;
       do {
         clcTickValue = tickValue / factor;
-        if(clcTickValue<1){
+        if(clcTickValue < .9){
           factor = factor / 10;
           decimals = decimals + 1;
         }
-      } while(clcTickValue < 1);
+      } while(clcTickValue < .9);
       // get rounded value between two ticks
       tickValue = Math.ceil(tickValue / factor) * factor;
       // get distance between to ticks by rounded value
       tickWidth = tickValue / maxValue  * maxWidth;
-      // calculate width of maximal tick value text
+      // recalc tick count
+      tickCount = Math.floor(maxValue / tickValue)+1;
+      // calculate width of maximal tick value text using current locale settings
       const width = new DecimalPipe(this.locale).transform(maxValue, '1.'+decimals+'-'+decimals).length * 7;
       // if width is less than the used minimal space between two ticks use value width + 10 as minimal space for next round
       if(width <= minSpace){
@@ -486,8 +980,6 @@ export class SegmentedBarChartComponent implements OnInit {
       const x = this.barOffsetLeft + (i * tickWidth);
       // estimate width of tick value as text
       const width = new DecimalPipe(this.locale).transform(value, '1.'+decimals+'-'+decimals).length * 7;
-      // if tick couldn't be displayed, stop calculation
-      if(x > this.width- 1) break;
       // make sure tick value as text could be displayed completely, if not hide text by opactiy
       const opacity = (x > this.width - (width/2)) ? 0 : 1;
       // create tick entry
@@ -504,6 +996,8 @@ export class SegmentedBarChartComponent implements OnInit {
     this.tickValue = tickValue;
     // store distance between two ticks as class attribute
     this.tickWidth = tickWidth;
+    // store decimals
+    this.decimals = decimals;
     // return optimized ticks
     return ticks;
   };
@@ -516,7 +1010,7 @@ export class SegmentedBarChartComponent implements OnInit {
    * @param maxValue maximal value for level
    * @param endCallback callback function, which will be triggered after animation has finished
    */
-  protected animateTicks(direction: string, maxValue: number, endCallback: (()=>void)): void {
+  protected animateTicks(direction: string, maxValue: number, endCallback: (()=>void), duration?: number): void {
     // references old tick calculations
     const oldTickValue = this.tickValue;
     const oldTickWidth = this.tickWidth;
@@ -566,17 +1060,18 @@ export class SegmentedBarChartComponent implements OnInit {
       }
     }
     // start tick animation
+    if(!duration) duration = this.duration / this.animateDownCycles;
     d3.select(this.svg)
       .select('g.ticks')
       .interrupt()
       .transition()
-      .duration(this.duration / this.animateDownCycles)
+      .duration(duration)
       .attrTween('tween-ticks', () => {
         // initialize interpolations for each element
         const interpolate = { opacity: [], x: [], value: [] };
         for(let i=0; i<this.ticks.length; ++i){
-          interpolate.x[i]      = d3.interpolate(this.ticks[i].x       , ticks[i].x);
-          interpolate.value[i]   = d3.interpolate(this.ticks[i].value  , ticks[i].value);
+          interpolate.x[i] = d3.interpolate(this.ticks[i].x, ticks[i].x);
+          interpolate.value[i] = d3.interpolate(this.ticks[i].value, ticks[i].value);
           interpolate.opacity[i] = d3.interpolate(this.ticks[i].opacity, ticks[i].opacity);
         }
         // return factory function
@@ -618,7 +1113,7 @@ export class SegmentedBarChartComponent implements OnInit {
    * starts down animation for a visible child
    * @param item 
    */
-  protected down(item: SegmentedBarChartData): void {
+  protected down(item: InternalSegmentedBarChartData): void {
     // get reference to internal data
     const data = this.getInternalData(item);
     // store current item
@@ -637,7 +1132,7 @@ export class SegmentedBarChartComponent implements OnInit {
   //-------------------------------------------------------------------------------------------------------------------
 
   /**
-   * first animation cyle
+   * first animation cyle (not animated, just for preparing, will be done in 0ms)
    * @param item item reference to new parent item
    */
   protected down01(item: SegmentedBarChartSegment, onFinished: (()=>void)): void {
@@ -817,8 +1312,8 @@ export class SegmentedBarChartComponent implements OnInit {
   protected down03(item: SegmentedBarChartSegment, onFinished: (()=>void)): void {
     // first delete all invisible segments
     for(let i=this.segments.length-1; i>=0; --i){
-      // a segment is invisible if opacity is 0 or width is 0
-      if(this.segments[i].rect.opacity===0 || this.segments[i].rect.width===0){
+      // a segment is invisible if it's parent doesn't match the active parent
+      if(this.segments[i].parent !== this.activeSegment){
         this.segments.splice(i,1);
       }
     }
@@ -952,7 +1447,7 @@ export class SegmentedBarChartComponent implements OnInit {
           // show text by opacity
           interpolate.text.opacity[idx] = d3.interpolate(0, 1);
         });
-        // return y function
+        // return factory function
         return (t: number): string => {
           // during animation assign new properties
           this.segments.forEach( (segment, idx) => {
@@ -991,18 +1486,19 @@ export class SegmentedBarChartComponent implements OnInit {
    * @param item 
    */
   protected up(): void {
+    // get reference of current parent
     const item = this.activeSegment;
+    // identify parent of this item
     const parent = this.getParent(item);
+    // set reference to new parent
     this.activeSegment = parent;
-    // get reference to internal data
-    const data = this.getInternalData(item);
-    // store current item
-    //this.activeSegment = item;
     // mark animation as active
     this.animationActive = true;
     // define finished callback
     const onFinished = () => {
+      // mark animation as done
       this.animationActive = false;
+      // if finish callback is defined, execute it
       if(this.animationFinshed) this.animationFinshed();
     };
     // start up animation cycle
@@ -1011,6 +1507,11 @@ export class SegmentedBarChartComponent implements OnInit {
 
   //-------------------------------------------------------------------------------------------------------------------
 
+  /**
+   * first animation cylce
+   * @param item 
+   * @param onFinished 
+   */
   protected up01(item: SegmentedBarChartData, onFinished: (()=>void)): void {
     // callback function to synchronize multiple asynchron animations
     let endCounter = 2;
@@ -1023,11 +1524,13 @@ export class SegmentedBarChartComponent implements OnInit {
     this.up01ticks(item, endCallback);
   };
 
+  /**
+   * first animation cycle for segments and bars
+   * @param item 
+   * @param endCallback 
+   */
   protected up01segments(item: SegmentedBarChartData, endCallback: (()=>void)): void {
-
-    const maxValue = this.getMaxValue(this.activeSegment);
-    const maxBarWidth = (this.width - this.barOffsetLeft - this.barOffsetRight);
-    const factor = this.factor = ((maxBarWidth-1) / maxValue);
+    this.calcTickFactor(this.activeSegment);
     d3.select(this.svg)
       .select('g.segments')
       .interrupt()
@@ -1040,7 +1543,7 @@ export class SegmentedBarChartComponent implements OnInit {
           interpolate.rect.width[idx] = d3.interpolate(seg.rect.width, seg.value * this.factor);
           interpolate.text.opacity[idx] = d3.interpolate(1, 0);
         });
-        // return y function
+        // return factory function
         return (t: number): string => {
           // during animation assign new properties
           this.segments.forEach( (seg, idx) => {
@@ -1069,6 +1572,11 @@ export class SegmentedBarChartComponent implements OnInit {
 
   //-------------------------------------------------------------------------------------------------------------------
 
+  /**
+   * second animation cycle
+   * @param item 
+   * @param onFinished 
+   */
   protected up02(item: SegmentedBarChartData, onFinished: (()=>void)): void {
     // callback function to synchronize multiple asynchron animations
     let endCounter = 2;
@@ -1081,55 +1589,72 @@ export class SegmentedBarChartComponent implements OnInit {
     this.up02breadcrumbs(item, endCallback);
   };
 
+  /**
+   * second animation cycle for segments and bars
+   * @param item 
+   * @param endCallback 
+   */
   protected up02segments(item: SegmentedBarChartData, endCallback: (()=>void)): void {
+    // initialize top offset for bars
     let offsetY = this.barOffsetTop + this.barSpacing;
+    // get segments of new parent
     const parSegments = this.getSegments(this.activeSegment);
-    console.log('parSegments:%o item:%o',parSegments,item);
+    // calculate top offset for current item in new parent view
     for(let i=0; i<parSegments.length; ++i){
       if(parSegments[i]===item){
         break;
       }
       offsetY += this.barHeight + this.barSpacing;
     }
+    // initialize left offset for bars
     let offsetX = this.barOffsetLeft;
-    console.log('offsetX:%o offsetY:%o',offsetX,offsetY);
     // second move all visible entries to new positions
     d3.select(this.svg)
-    .select('g.segments')
-    .interrupt()
-    .transition()
-    .duration(this.duration / this.animateUpCycles)
-    .attrTween('tween-segments', () => {
-      // initialize interpolations for each element
-      const interpolate = { x: [], y: [] };
-      this.segments.forEach( (segment, idx) => {
-        interpolate.x.push(d3.interpolate(segment.rect.x, offsetX));
-        interpolate.y.push(d3.interpolate(segment.rect.y, offsetY));
-        offsetX += segment.rect.width;
-      });
-      // return y function
-      return (t: number): string => {
-        // during animation assign new properties
+      .select('g.segments')
+      .interrupt()
+      .transition()
+      .duration(this.duration / this.animateUpCycles)
+      .attrTween('tween-segments', () => {
+        // initialize interpolations for each element
+        const interpolate = { x: [], y: [] };
         this.segments.forEach( (segment, idx) => {
-          segment.rect.x = interpolate.x[idx](t);
-          segment.rect.y = interpolate.y[idx](t);
+          interpolate.x.push(d3.interpolate(segment.rect.x, offsetX));
+          interpolate.y.push(d3.interpolate(segment.rect.y, offsetY));
+          // update left offset for next segment
+          offsetX += segment.rect.width;
         });
-        return '';
-      }
-    })
-    // on end of animation
-    .on('end', () => { endCallback(); });
+        // return factory function
+        return (t: number): string => {
+          // during animation assign new properties
+          this.segments.forEach( (segment, idx) => {
+            segment.rect.x = interpolate.x[idx](t);
+            segment.rect.y = interpolate.y[idx](t);
+          });
+          return '';
+        }
+      })
+      // on end of animation
+      .on('end', () => { endCallback(); });
   };
 
+  /**
+   * second animation cycle for breadcrumbs
+   * @param item 
+   * @param endCallback 
+   */
   protected up02breadcrumbs(item: SegmentedBarChartData, endCallback: (()=>void)): void {
+    // initialize top offset for bars and segments
     let offsetY = this.barOffsetTop + this.barSpacing;
+    // get segments of new parent
     const parSegments = this.getSegments(this.activeSegment);
+    // calculate new top offset for current item in parent view
     for(let i=0; i<parSegments.length; ++i){
       if(parSegments[i]===item){
         break;
       }
       offsetY += this.barHeight + this.barSpacing;
     }
+    // initialize left offset for bars
     let offsetX = this.barOffsetLeft;
     // move breadcrumb entry
     d3.select(this.svg)
@@ -1138,27 +1663,23 @@ export class SegmentedBarChartComponent implements OnInit {
       .transition()
       .duration(this.duration / this.animateUpCycles)
       .attrTween('tween-breadcrumbs', () => {
+        // initialize interpolations for each element
         const interpolate = { x: [], y: [], color: [] };
         this.breadcrumbs.forEach( (breadcrumb, idx) => {
-          if(idx < this.breadcrumbs.length-1){
-            interpolate.x.push(null);
-            interpolate.y.push(null);
-            interpolate.color.push(null);
-          }
-          else {
-            interpolate.x.push(d3.interpolate(breadcrumb.x, offsetX - this.barSpacing));
-            interpolate.y.push(d3.interpolate(breadcrumb.y, offsetY + this.barHeight/2+4));
-            interpolate.color.push(d3.interpolate(breadcrumb.color, breadcrumb.data.color));
+          // if it's the last breadcrumb item
+          if(idx >= this.breadcrumbs.length-1) {
+            interpolate.x[idx] = d3.interpolate(breadcrumb.x, offsetX - this.barSpacing);
+            interpolate.y[idx] = d3.interpolate(breadcrumb.y, offsetY + this.barHeight/2+4);
+            interpolate.color[idx] = d3.interpolate(breadcrumb.color, breadcrumb.data.color);
           }
         });
+        // return factory function
         return (t:number): string => {
+          // during animation assign new properties
           this.breadcrumbs.forEach( (breadcrumb, idx) => {
-            if(interpolate.x[idx]!==null)
-              breadcrumb.x = interpolate.x[idx](t);
-            if(interpolate.y[idx]!==null)
-              breadcrumb.y = interpolate.y[idx](t);
-            if(interpolate.color[idx]!==null)
-              breadcrumb.color = interpolate.color[idx](t);
+            if(interpolate.x[idx]) breadcrumb.x = interpolate.x[idx](t);
+            if(interpolate.y[idx]) breadcrumb.y = interpolate.y[idx](t);
+            if(interpolate.color[idx]) breadcrumb.color = interpolate.color[idx](t);
           });
           return '';
         };
@@ -1169,18 +1690,29 @@ export class SegmentedBarChartComponent implements OnInit {
 
   //-------------------------------------------------------------------------------------------------------------------
 
+  /**
+   * third animation cycle (not animated, just for preparing, will be done in 0ms)
+   * @param item 
+   * @param onFinished 
+   */
   protected up03(item: SegmentedBarChartData, onFinished: (()=>void)): void {
     // animate segments and bars
     this.up03segments(item);
-    //
+    // directly execute next animation cylce
     this.up04(item, onFinished);
   };
 
+  /**
+   * third animation cycle for segments and bars
+   * @param item 
+   */
   protected up03segments(item: SegmentedBarChartData): void {
-    // add segments
+    // initialize top and left offset for bars and segments
     let offsetY = this.barOffsetTop + this.barSpacing;
     let offsetX = this.barOffsetLeft;
+    // get segments for new parent
     const segments = this.getSegments(this.activeSegment);
+    // initialize objects for the new bars
     segments.forEach( (data, idx) => {
       const value = this.getValue(data);
       const segment: SegmentedBarChartSegment = {
@@ -1208,6 +1740,11 @@ export class SegmentedBarChartComponent implements OnInit {
 
   //-------------------------------------------------------------------------------------------------------------------
 
+  /**
+   * fourth animation cycle
+   * @param item 
+   * @param onFinished 
+   */
   protected up04(item: SegmentedBarChartData, onFinished: (()=>void)): void {
     // callback function to synchronize multiple asynchron animations
     let endCounter = 2;
@@ -1220,6 +1757,11 @@ export class SegmentedBarChartComponent implements OnInit {
     this.up04breadcrumbs(item, endCallback);
   };
   
+  /**
+   * fourth animation cycle for segments and bars
+   * @param item 
+   * @param endCallback 
+   */
   protected up04segments(item: SegmentedBarChartData, endCallback: (()=>void)): void {
     d3.select(this.svg)
       .select('g.segments')
@@ -1248,7 +1790,7 @@ export class SegmentedBarChartComponent implements OnInit {
             interpolate.rect.opacity[idx] = d3.interpolate(seg.rect.opacity, 0);
           }
         });
-        // return y function
+        // return factory function
         return (t: number): string => {
           // during animation assign new properties
           this.segments.forEach( (seg, idx) => {
@@ -1274,6 +1816,11 @@ export class SegmentedBarChartComponent implements OnInit {
       });
   };
 
+  /**
+   * fourth animation cycle for breadcrumbs
+   * @param item 
+   * @param endCallback 
+   */
   protected up04breadcrumbs(item: SegmentedBarChartData, endCallback: (()=>void)): void {
     d3.select(this.svg)
       .select('g.breadcrumbs')
@@ -1281,19 +1828,19 @@ export class SegmentedBarChartComponent implements OnInit {
       .transition()
       .duration(this.duration / this.animateUpCycles)
       .attrTween('tween-breadcrumbs', () => {
-        const interpolate = { x: [], y: [], color: [], opacity: [] };
+        // initialize interpolations for each element
+        const interpolate = { opacity: [] };
         this.breadcrumbs.forEach( (breadcrumb, idx) => {
-          if(idx < this.breadcrumbs.length-1){
-            interpolate.opacity.push(null);
-          }
-          else {
-            interpolate.opacity.push(d3.interpolate(breadcrumb.opacity, 0));
+          // if it's the last breadcrumb item
+          if(idx >= this.breadcrumbs.length-1) {
+            interpolate.opacity[idx] = d3.interpolate(breadcrumb.opacity, 0);
           }
         });
+        // return factory function
         return (t:number): string => {
+          // during animation assign new properties
           this.breadcrumbs.forEach( (breadcrumb, idx) => {
-            if(interpolate.opacity[idx]!==null)
-              breadcrumb.opacity = interpolate.opacity[idx](t);
+            if(interpolate.opacity[idx]) breadcrumb.opacity = interpolate.opacity[idx](t);
           });
           return '';
         };

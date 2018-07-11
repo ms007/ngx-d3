@@ -15,6 +15,11 @@ An animated bubble chart component with optional pictures, displaying all change
 
 Click [here](./projects/bubble-chart/readme.md) to show BubbleChart documentation.
 
+## SegmentedBarChart
+An animated horizontal multi level bar chart component. The user can click on bars and navigate within these levels. Changes will be displayed with smooth transitions.
+
+Click [here](./projects/segmented-bar-chart/readme.md) to show SegmentedBarChart documentation.
+
 ## License
 
 This implementation is released unter the Apache License v2.

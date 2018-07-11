@@ -1,5 +1,5 @@
 import { BrowserModule } from '@angular/platform-browser';
-import { NgModule } from '@angular/core';
+import { NgModule, LOCALE_ID } from '@angular/core';
 
 import { AppComponent } from './app.component';
 import { AppRoutingModule } from './/app-routing.module';
@@ -9,6 +9,10 @@ import { BubbleChartModule } from '../../projects/bubble-chart/src/lib/bubble-ch
 import { PieChartDemoComponent } from './pie-chart-demo/pie-chart-demo.component';
 import { BubbleChartDemoComponent } from './bubble-chart-demo/bubble-chart-demo.component';
 import { SegmentedBarChartDemoComponent } from './segmented-bar-chart-demo/segmented-bar-chart-demo.component';
+import { registerLocaleData } from '@angular/common';
+import localeDE from '@angular/common/locales/de';
+
+registerLocaleData(localeDE);
 
 @NgModule({
   declarations: [
@@ -24,7 +28,9 @@ import { SegmentedBarChartDemoComponent } from './segmented-bar-chart-demo/segme
     BubbleChartModule,
     SegmentedBarChartModule
   ],
-  providers: [],
+  providers: [
+    //{ provide: LOCALE_ID, useValue: 'de-DE' }
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule {}

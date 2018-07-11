@@ -1,5 +1,5 @@
-import { Component, OnInit } from '@angular/core';
-import { SegmentedBarChartData } from 'projects/segmented-bar-chart/src/public_api';
+import { Component, OnInit, ElementRef, HostListener, ViewChild } from '@angular/core';
+import { SegmentedBarChartData, SegmentedBarChartComponent } from 'projects/segmented-bar-chart/src/public_api';
 
 @Component({
   selector: 'app-segmented-bar-chart-demo',
@@ -10,7 +10,11 @@ export class SegmentedBarChartDemoComponent implements OnInit {
 
   public data: SegmentedBarChartData[] = [];
 
-  constructor() { }
+  public chartWidth: number = 800;
+
+  constructor(
+    private element: ElementRef
+  ) { }
 
 
   /**
@@ -56,21 +60,49 @@ export class SegmentedBarChartDemoComponent implements OnInit {
     return min + Math.floor(Math.random() * (max - min));
   };
 
+  @HostListener('window:resize', ['$event'])
+  private resized(event){
+    this.resize();
+  };
+
+  public resize(): void {
+    const width = (this.element.nativeElement as HTMLElement).clientWidth;
+    this.chartWidth = width - 20;
+    ((this.element.nativeElement as HTMLElement).querySelector('oc-segmented-bar-chart') as HTMLElement).style.width = this.chartWidth + 'px';
+  };
+
+  @ViewChild(SegmentedBarChartComponent)
+  private chart: SegmentedBarChartComponent;
+
   ngOnInit() {
+    this.resize();
+    this.initWithRandom();
+  }
 
+  public navigateToRandom(){
+    let parent = null, segments = this.data;
+    let maxDepth = this.randomInt(0, 6);
+    while(maxDepth > 0 && segments && segments.length>0){
+      const idx = this.randomInt(0, segments.length-1);
+      if(segments[idx].segments && segments[idx].segments.length>0){
+        parent = segments[idx]; segments = parent.segments;
+      }
+      --maxDepth;
+    }
+    console.log('navigate to parent:%o',parent);
+    this.chart.navigateTo(parent);
+  };
+
+  public initWithRandom(){
     const colors: string[][] = [];
-
     for(let l=0; l<20; ++l){
       colors[l] = [];
       for(let i=0; i<20; ++i){
         colors[l][i] = this.generateRandomColor(0);
       }
     }
-
     this.data = [];
-
     const barCount = 5;
-
     for(let i=0; i<barCount; ++i){
       const I: SegmentedBarChartData = { caption: 'Item #'+i, color: colors[0][i], segments: [] };
       this.data.push(I);
@@ -87,7 +119,7 @@ export class SegmentedBarChartDemoComponent implements OnInit {
               const M: SegmentedBarChartData = { caption: 'Item #'+i+'/'+j+'/'+k+'/'+l+'/'+m, color: colors[4][m], segments: [] };
               L.segments.push(M);
               for(let n=0; n<barCount; ++n){
-                const N: SegmentedBarChartData = { caption: 'Item #'+i+'/'+j+'/'+k+'/'+l+'/'+m+'/'+n, color: colors[5][n], value: this.randomInt(1,10000)/this.randomInt(1, 10000) };
+                const N: SegmentedBarChartData = { caption: 'Item #'+i+'/'+j+'/'+k+'/'+l+'/'+m+'/'+n, color: colors[5][n], value: this.randomInt(1,100000)/this.randomInt(1, 100000) };
                 M.segments.push(N);
               }
             }
@@ -95,15 +127,15 @@ export class SegmentedBarChartDemoComponent implements OnInit {
         }
       }
     }
+  };
 
-
-    /*const segColors: string[] = [
+  public initWithFrameworks(){
+    const segColors: string[] = [
       '#747474',
       '#563D7C',
       '#293949',
       '#3DB7C4'
     ];
-
     this.data = [
       { caption: 'Angular', color: '#DD0031', value: 100,
         segments: [
@@ -137,7 +169,23 @@ export class SegmentedBarChartDemoComponent implements OnInit {
           { caption: 'SEG-04', color: segColors[3], value: 15 }
         ]
       }
-    ];*/
-  }
+    ];
+  };
+
+  /**
+   * fired when user clicks on a chart item
+   * @param item 
+   */
+  public chartClicked(item: SegmentedBarChartData) {
+    console.log('clicked item:%o', item);
+  };
+
+  /**
+   * fired when user hovers a chart item
+   * @param item 
+   */
+  public chartHovered(item: SegmentedBarChartData) {
+    console.log('hovered item:%o', item);
+  };
 
 }

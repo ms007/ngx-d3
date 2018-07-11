@@ -18,7 +18,9 @@
           [attr.fill]="'#ffffff'" [attr.fill-opacity]="0"
           (click)="clickedChart($event)"
       ></rect>
-    <g class="segment" *ngFor="let segment of segments; let idx = index" (click)="clickedSegment(segment)" [attr.segments-index]="idx">
+    <g class="segment" *ngFor="let segment of segments; let idx = index"  [attr.segments-index]="idx"
+      [attr.tooltip]="getTooltipText(segment)"
+      (mouseover)="overSegment($event)" (mousemove)="moveSegment($event);" (mouseout)="outSegment($event)" (click)="clickedSegment(segment)">
       <text [attr.x]="segment.text.x" [attr.y]="segment.text.y" 
             [attr.fill]="segment.color" [attr.fill-opacity]="segment.text.opacity"
         >{{ segment.data.caption }}</text>
@@ -42,7 +44,7 @@
     <g class="breadcrumb" *ngFor="let breadcrumb of breadcrumbs; let last = last">
       <text [attr.x]="breadcrumb.x" [attr.y]="breadcrumb.y" 
             [attr.fill]="breadcrumb.color" [attr.fill-opacity]="breadcrumb.opacity"
-            (click)="navigateTo(breadcrumb.data)"
+            (click)="navigateTo(breadcrumb.data.origin)"
         >{{ breadcrumb.data.caption }}</text>
       <g class="breadcrumb-arrow" *ngIf="!last">
         <line [attr.x1]="breadcrumb.x+5" [attr.x2]="breadcrumb.x+10" [attr.y1]="breadcrumb.y-6.5" [attr.y2]="breadcrumb.y-3.5"></line>
